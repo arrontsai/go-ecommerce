@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/product/service"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/product/service"
 )
 
 // CategoryHandler handles category HTTP requests
@@ -122,3 +122,4 @@ func (h *CategoryHandler) RegisterRoutes(router *gin.Engine, authMiddleware gin.
 		categories.DELETE("/:id", authMiddleware, h.DeleteCategory)
 	}
 }
+

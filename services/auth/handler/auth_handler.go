@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/auth/service"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/auth/service"
 )
 
 // AuthHandler handles authentication HTTP requests

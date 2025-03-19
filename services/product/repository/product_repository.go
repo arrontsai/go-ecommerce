@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourusername/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -154,3 +154,4 @@ func (r *MongoProductRepository) CountAll(ctx context.Context) (int64, error) {
 func (r *MongoProductRepository) CountByCategory(ctx context.Context, categoryID string) (int64, error) {
 	return r.collection.CountDocuments(ctx, bson.M{"category_id": categoryID})
 }
+

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yourusername/ecommerce/pkg/config"
+	"github.com/arrontsai/ecommerce/pkg/config"
 	"go.uber.org/zap"
 	"github.com/segmentio/kafka-go"
 	"github.com/google/uuid"
@@ -76,3 +76,4 @@ func (f *MessageBrokerFactory) GetPreferredBrokerType() MessageBrokerType {
 	// 預設使用 Kafka
 	return KafkaBroker
 }
+

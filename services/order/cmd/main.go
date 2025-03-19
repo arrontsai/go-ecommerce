@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 
@@ -10,11 +11,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 
 	"github.com/arrontsai/ecommerce/pkg/config"
 	"github.com/arrontsai/ecommerce/pkg/database"
+	"github.com/arrontsai/ecommerce/pkg/logger"
 	"github.com/arrontsai/ecommerce/pkg/messaging"
 	"github.com/arrontsai/ecommerce/pkg/models"
 	pb "github.com/arrontsai/ecommerce/services/order/proto/pb"
@@ -28,27 +31,37 @@ type orderServer struct {
 
 func main() {
 	// 初始化配置
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("order-service")
 	if err != nil {
 		log.Fatal("無法載入配置:", err)
 	}
 
-	// 初始化PostgreSQL
-	pgClient, err := database.NewPostgresClient(cfg.PostgreSQL.URI)
+	// 初始化日誌記錄器
+	appLogger, err := logger.NewLogger("order-service", cfg.LogLevel)
 	if err != nil {
-		log.Fatal("無法連接PostgreSQL:", err)
+		log.Fatal("無法初始化日誌記錄器:", err)
+	}
+
+	// 構建 PostgreSQL 連接字符串
+	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
+
+	// 初始化PostgreSQL
+	pgClient, err := database.NewPostgresClient(pgConnStr)
+	if err != nil {
+		appLogger.Fatal("無法連接PostgreSQL:", zap.Error(err))
 	}
 	defer pgClient.Close()
 
 	// 初始化Kafka消費者
-	kafkaFactory := messaging.NewMessageBrokerFactory(cfg)
-	kafkaConsumer, err := kafkaFactory.CreateKafkaConsumer("order-group")
+	kafkaFactory := messaging.NewMessageBrokerFactory(cfg, appLogger.Logger)
+	kafkaConsumer, err := kafkaFactory.CreateKafkaClient()
 	if err != nil {
-		log.Fatal("無法初始化Kafka消費者:", err)
+		appLogger.Fatal("無法初始化Kafka消費者:", zap.Error(err))
 	}
 
 	// 創建訂單服務
-	server := &orderServer{db: pgClient}
+	server := &orderServer{db: pgClient.DB}
 
 	// 訂閱Kafka主題
 	go subscribeToCartEvents(kafkaConsumer, server)
@@ -56,15 +69,15 @@ func main() {
 	// 啟動gRPC伺服器
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("無法監聽端口: %v", err)
+		appLogger.Fatal("無法監聽端口:", zap.Error(err))
 	}
 	
 	s := grpc.NewServer()
 	pb.RegisterOrderServiceServer(s, server)
 	
-	log.Println("訂單服務啟動於 :50051")
+	appLogger.Info("訂單服務啟動於 :50051")
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("無法啟動gRPC伺服器: %v", err)
+		appLogger.Fatal("無法啟動gRPC伺服器:", zap.Error(err))
 	}
 }
 
@@ -233,3 +246,4 @@ func subscribeToCartEvents(consumer messaging.KafkaConsumer, server *orderServer
 		log.Fatalf("無法消費消息: %v", err)
 	}
 }
+

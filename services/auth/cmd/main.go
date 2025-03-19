@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/ecommerce/pkg/config"
-	"github.com/yourusername/ecommerce/pkg/database"
-	"github.com/yourusername/ecommerce/pkg/logger"
-	"github.com/yourusername/ecommerce/pkg/middleware"
-	"github.com/yourusername/ecommerce/services/auth/handler"
-	"github.com/yourusername/ecommerce/services/auth/repository"
-	"github.com/yourusername/ecommerce/services/auth/service"
+	"github.com/arrontsai/ecommerce/pkg/config"
+	"github.com/arrontsai/ecommerce/pkg/database"
+	"github.com/arrontsai/ecommerce/pkg/logger"
+	"github.com/arrontsai/ecommerce/pkg/middleware"
+	"github.com/arrontsai/ecommerce/services/auth/handler"
+	"github.com/arrontsai/ecommerce/services/auth/repository"
+	"github.com/arrontsai/ecommerce/services/auth/service"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	defer appLogger.Sync()
 
 	// Connect to MongoDB
 	mongoClient, err := database.NewMongoClient(cfg.MongoURI, cfg.MongoDB)

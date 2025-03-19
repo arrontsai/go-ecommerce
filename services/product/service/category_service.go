@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/product/repository"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/product/repository"
 )
 
 // CategoryService defines the interface for category service operations
@@ -128,3 +128,4 @@ func (s *DefaultCategoryService) DeleteCategory(ctx context.Context, id string) 
 	// Delete the category
 	return s.categoryRepo.Delete(ctx, id)
 }
+

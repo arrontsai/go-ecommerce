@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/yourusername/ecommerce/pkg/middleware"
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/auth/repository"
+	"github.com/arrontsai/ecommerce/pkg/middleware"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/auth/repository"
 )
 
 // AuthService defines the interface for authentication service operations

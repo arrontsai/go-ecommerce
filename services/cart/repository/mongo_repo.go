@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/pkg/database"
 )
 
 // CartRepository 定義購物車儲存庫的介面
@@ -25,8 +26,8 @@ type MongoCartRepository struct {
 }
 
 // NewMongoCartRepository 創建一個新的MongoDB購物車儲存庫
-func NewMongoCartRepository(client *mongo.Client) *MongoCartRepository {
-	collection := client.Database("ecommerce").Collection("carts")
+func NewMongoCartRepository(client *database.MongoClient) *MongoCartRepository {
+	collection := client.Collection("carts")
 	return &MongoCartRepository{collection: collection}
 }
 

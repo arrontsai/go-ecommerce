@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/ecommerce/pkg/config"
-	"github.com/yourusername/ecommerce/pkg/database"
-	"github.com/yourusername/ecommerce/pkg/logger"
-	"github.com/yourusername/ecommerce/pkg/middleware"
-	"github.com/yourusername/ecommerce/services/product/handler"
-	"github.com/yourusername/ecommerce/services/product/repository"
-	"github.com/yourusername/ecommerce/services/product/service"
+	"github.com/arrontsai/ecommerce/pkg/config"
+	"github.com/arrontsai/ecommerce/pkg/database"
+	"github.com/arrontsai/ecommerce/pkg/logger"
+	"github.com/arrontsai/ecommerce/pkg/middleware"
+	"github.com/arrontsai/ecommerce/services/product/handler"
+	"github.com/arrontsai/ecommerce/services/product/repository"
+	"github.com/arrontsai/ecommerce/services/product/service"
 	"go.uber.org/zap"
 )
 
@@ -104,3 +104,4 @@ func main() {
 
 	appLogger.Info("Server exiting")
 }
+

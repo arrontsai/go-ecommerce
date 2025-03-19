@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/product/service"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/product/service"
 )
 
 // ProductHandler handles product HTTP requests
@@ -180,3 +180,4 @@ func (h *ProductHandler) RegisterRoutes(router *gin.Engine, authMiddleware gin.H
 		products.DELETE("/:id", authMiddleware, h.DeleteProduct)
 	}
 }
+

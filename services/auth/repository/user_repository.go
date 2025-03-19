@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourusername/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/pkg/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )

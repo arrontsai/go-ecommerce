@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/yourusername/ecommerce/pkg/models"
-	"github.com/yourusername/ecommerce/services/product/repository"
+	"github.com/arrontsai/ecommerce/pkg/models"
+	"github.com/arrontsai/ecommerce/services/product/repository"
 )
 
 // ProductService defines the interface for product service operations
@@ -156,3 +156,4 @@ func (s *DefaultProductService) DeleteProduct(ctx context.Context, id string) er
 	// Delete the product
 	return s.productRepo.Delete(ctx, id)
 }
+

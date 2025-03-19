@@ -1,41 +1,45 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/arrontsai/ecommerce/pkg/config"
 	"github.com/arrontsai/ecommerce/pkg/database"
+	"github.com/arrontsai/ecommerce/pkg/logger"
 	"github.com/arrontsai/ecommerce/pkg/messaging"
-	"github.com/arrontsai/ecommerce/pkg/models"
 	"github.com/arrontsai/ecommerce/services/cart/repository"
 )
 
 func main() {
 	// 初始化配置
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig("cart-service")
 	if err != nil {
 		log.Fatal("無法載入配置:", err)
 	}
 
+	// 初始化日誌記錄器
+	appLogger, err := logger.NewLogger("cart-service", cfg.LogLevel)
+	if err != nil {
+		log.Fatal("無法初始化日誌記錄器:", err)
+	}
+
 	// 初始化MongoDB連接
-	mongoClient, err := database.NewMongoClient(cfg.MongoDB.URI)
+	mongoClient, err := database.NewMongoClient(cfg.MongoURI, cfg.MongoDB)
 	if err != nil {
 		log.Fatal("無法連接MongoDB:", err)
 	}
-	defer mongoClient.Disconnect(context.Background())
+	defer mongoClient.Close()
 
 	// 初始化購物車儲存庫
 	cartRepo := repository.NewMongoCartRepository(mongoClient)
 
 	// 初始化Kafka生產者
-	kafkaFactory := messaging.NewMessageBrokerFactory(cfg)
-	kafkaProducer, err := kafkaFactory.CreateKafkaProducer()
+	kafkaFactory := messaging.NewMessageBrokerFactory(cfg, appLogger.Logger)
+	kafkaProducer, err := kafkaFactory.CreateKafkaClient()
 	if err != nil {
 		log.Fatal("無法初始化Kafka生產者:", err)
 	}
@@ -60,10 +64,10 @@ func setupRouter(repo repository.CartRepository, producer messaging.KafkaProduce
 
 	// 添加商品到購物車
 	r.POST("/cart", addToCartHandler(repo))
-	
+
 	// 獲取購物車內容
 	r.GET("/cart/:userID", getCartHandler(repo))
-	
+
 	// 結帳
 	r.POST("/cart/checkout", checkoutHandler(repo, producer))
 
