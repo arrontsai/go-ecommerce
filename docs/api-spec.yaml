@@ -1,0 +1,11 @@
+openapi: 3.0.0
+info:
+  title: Ecommerce API
+  version: 1.0.0
+paths:
+  /api/v1/products:
+    get:
+      summary: 取得商品列表
+      responses:
+        '200':
+          description: 成功取得商品資料
