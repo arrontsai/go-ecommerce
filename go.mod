@@ -8,7 +8,7 @@ require (
 	github.com/IBM/sarama v1.45.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
@@ -17,8 +17,8 @@ require (
 	go.mongodb.org/mongo-driver v1.12.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.33.0
-	google.golang.org/grpc v1.56.2
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/grpc v1.62.1
+	google.golang.org/protobuf v1.32.0
 )
 
 require (
@@ -76,7 +76,7 @@ require (
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
-	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

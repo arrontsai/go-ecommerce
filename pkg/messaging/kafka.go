@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -10,6 +11,11 @@ import (
 	"github.com/segmentio/kafka-go"
 	"go.uber.org/zap"
 )
+
+// KafkaProducer 生產者介面
+type KafkaProducer interface {
+	Produce(topic string, message interface{}) error
+}
 
 // KafkaClient 是 Kafka 客戶端
 type KafkaClient struct {
@@ -19,41 +25,24 @@ type KafkaClient struct {
 	BrokerURLs []string
 }
 
-// KafkaConfig 是 Kafka 配置
-type KafkaConfig struct {
-	BrokerURLs []string
-	ClientID   string
-	GroupID    string
-}
-
-// MessageHandler 是消息處理函數類型
-type MessageHandler func([]byte) error
-
-// NewKafkaClient 創建一個新的 Kafka 客戶端
-func NewKafkaClient(config KafkaConfig, logger *zap.Logger) (*KafkaClient, error) {
+// NewKafkaClient 創建新的 Kafka 客戶端 (直接初始化版本)
+func NewKafkaClient(brokers []string, logger *zap.Logger) (*KafkaClient, error) {
 	if logger == nil {
-		return nil, fmt.Errorf("logger 不能為空")
+		return nil, errors.New("logger 參數不可為空")
+	}
+	if len(brokers) == 0 {
+		return nil, errors.New("至少需要指定一個 Kafka broker")
 	}
 
-	if len(config.BrokerURLs) == 0 {
-		return nil, fmt.Errorf("broker URLs 不能為空")
-	}
-
-	client := &KafkaClient{
-		BrokerURLs: config.BrokerURLs,
+	return &KafkaClient{
+		BrokerURLs: brokers,
 		Logger:     logger,
 		Readers:    make(map[string]*kafka.Reader),
-	}
-
-	// 創建一個默認的寫入器
-	client.Writer = &kafka.Writer{
-		Addr:         kafka.TCP(config.BrokerURLs...),
-		Balancer:     &kafka.LeastBytes{},
-		RequiredAcks: kafka.RequireAll,
-		Async:        false,
-	}
-
-	return client, nil
+		Writer: &kafka.Writer{
+			Addr:  kafka.TCP(brokers...),
+			Topic: "", // 動態指定
+		},
+	}, nil
 }
 
 // PublishMessage 發布消息到指定的主題
@@ -93,8 +82,19 @@ func (c *KafkaClient) PublishJSON(ctx context.Context, topic string, key string,
 	return c.PublishMessage(ctx, topic, key, jsonData)
 }
 
+// Publish 發布消息到指定的主題
+func (c *KafkaClient) Publish(topic string, message []byte) error {
+	c.Logger.Info("Publishing message", zap.String("topic", topic))
+	return c.Writer.WriteMessages(context.Background(),
+		kafka.Message{
+			Topic: topic,
+			Value: message,
+		},
+	)
+}
+
 // ConsumeMessages 消費指定主題的消息
-func (c *KafkaClient) ConsumeMessages(ctx context.Context, topic, groupID string, handler MessageHandler) error {
+func (c *KafkaClient) ConsumeMessages(ctx context.Context, topic, groupID string, handler func([]byte) error) error {
 	// 檢查是否已經有這個主題的讀取器
 	readerKey := fmt.Sprintf("%s-%s", topic, groupID)
 	reader, exists := c.Readers[readerKey]
@@ -156,6 +156,18 @@ func (c *KafkaClient) ConsumeMessages(ctx context.Context, topic, groupID string
 	}()
 
 	return nil
+}
+
+// Produce 發布結構化消息到指定的主題 (用於實作 KafkaProducer 介面)
+func (c *KafkaClient) Produce(topic string, message interface{}) error {
+	// 序列化消息
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("序列化消息失敗: %w", err)
+	}
+
+	// 使用空 key 發布消息
+	return c.PublishMessage(context.Background(), topic, "", messageBytes)
 }
 
 // Close 關閉 Kafka 客戶端

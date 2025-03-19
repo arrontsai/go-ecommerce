@@ -30,7 +30,9 @@ type Config struct {
 	MongoDB    string
 
 	// Kafka configuration
-	KafkaBrokers []string `mapstructure:"KAFKA_BROKERS"`
+	KafkaBrokers []string
+	AppName      string // 用於 Kafka ClientID
+	Env          string // 用於 Kafka GroupID
 	KafkaGroupID  string   `mapstructure:"KAFKA_GROUP_ID"`
 
 	// JWT configuration
@@ -67,6 +69,8 @@ func LoadConfig(serviceName string) (*Config, error) {
 
 		// Kafka configuration
 		KafkaBrokers: strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
+		AppName:      getEnv("APP_NAME", "my-app"),
+		Env:          getEnv("ENV", "dev"),
 		KafkaGroupID: getEnv("KAFKA_GROUP_ID", "my-group"),
 
 		// JWT configuration

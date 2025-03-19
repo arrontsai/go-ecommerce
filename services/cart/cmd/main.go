@@ -38,8 +38,7 @@ func main() {
 	cartRepo := repository.NewMongoCartRepository(mongoClient)
 
 	// 初始化Kafka生產者
-	kafkaFactory := messaging.NewMessageBrokerFactory(cfg, appLogger.Logger)
-	kafkaProducer, err := kafkaFactory.CreateKafkaClient()
+	kafkaProducer, err := messaging.NewKafkaClient(cfg.KafkaBrokers, appLogger.Logger)
 	if err != nil {
 		log.Fatal("無法初始化Kafka生產者:", err)
 	}

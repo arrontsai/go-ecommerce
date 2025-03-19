@@ -6,21 +6,18 @@ import (
 	"fmt"
 	"log"
 	"net"
-
-	"github.com/google/uuid"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"github.com/IBM/sarama"
-	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
+	"os"
 
 	"github.com/arrontsai/ecommerce/pkg/config"
-	"github.com/arrontsai/ecommerce/pkg/database"
 	"github.com/arrontsai/ecommerce/pkg/logger"
 	"github.com/arrontsai/ecommerce/pkg/messaging"
-	"github.com/arrontsai/ecommerce/pkg/models"
-	pb "github.com/arrontsai/ecommerce/services/order/proto/pb"
+	"github.com/arrontsai/ecommerce/services/order/model"
+	"github.com/arrontsai/ecommerce/services/order/proto/pb"
+	"github.com/arrontsai/ecommerce/services/order/repository"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 // orderServer 實現訂單服務的gRPC接口
@@ -47,21 +44,20 @@ func main() {
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 
 	// 初始化PostgreSQL
-	pgClient, err := database.NewPostgresClient(pgConnStr)
+	pgClient, err := sqlx.Connect("postgres", pgConnStr)
 	if err != nil {
 		appLogger.Fatal("無法連接PostgreSQL:", zap.Error(err))
 	}
 	defer pgClient.Close()
 
 	// 初始化Kafka消費者
-	kafkaFactory := messaging.NewMessageBrokerFactory(cfg, appLogger.Logger)
-	kafkaConsumer, err := kafkaFactory.CreateKafkaClient()
+	kafkaConsumer, err := messaging.NewKafkaClient(cfg.KafkaBrokers, appLogger.Logger)
 	if err != nil {
 		appLogger.Fatal("無法初始化Kafka消費者:", zap.Error(err))
 	}
 
 	// 創建訂單服務
-	server := &orderServer{db: pgClient.DB}
+	server := &orderServer{db: pgClient}
 
 	// 訂閱Kafka主題
 	go subscribeToCartEvents(kafkaConsumer, server)
@@ -84,12 +80,12 @@ func main() {
 // CreateOrder 實現創建訂單的gRPC方法
 func (s *orderServer) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.OrderResponse, error) {
 	// 生成訂單ID
-	orderID := uuid.New().String()
-	
+	orderID := fmt.Sprintf("%x", os.Getpid())
+
 	// 開始資料庫事務
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "無法開始事務: %v", err)
+		return nil, fmt.Errorf("無法開始事務: %v", err)
 	}
 	
 	// 計算總金額
@@ -105,7 +101,7 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *pb.CreateOrderReques
 		orderID, req.UserId, totalAmount, "PENDING")
 	if err != nil {
 		tx.Rollback()
-		return nil, status.Errorf(codes.Internal, "無法創建訂單: %v", err)
+		return nil, fmt.Errorf("無法創建訂單: %v", err)
 	}
 	
 	// 插入訂單項目
@@ -116,13 +112,13 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *pb.CreateOrderReques
 			orderID, item.ProductId, item.Quantity, item.Price)
 		if err != nil {
 			tx.Rollback()
-			return nil, status.Errorf(codes.Internal, "無法創建訂單項目: %v", err)
+			return nil, fmt.Errorf("無法創建訂單項目: %v", err)
 		}
 	}
 	
 	// 提交事務
 	if err = tx.Commit(); err != nil {
-		return nil, status.Errorf(codes.Internal, "無法提交事務: %v", err)
+		return nil, fmt.Errorf("無法提交事務: %v", err)
 	}
 	
 	return &pb.OrderResponse{
@@ -133,30 +129,39 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *pb.CreateOrderReques
 
 // GetOrder 實現獲取訂單的gRPC方法
 func (s *orderServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*pb.OrderDetailResponse, error) {
-	var order models.Order
-	err := s.db.GetContext(ctx, &order,
-		`SELECT id, user_id, total_amount, status, created_at 
-		 FROM orders WHERE id = $1`, req.OrderId)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "訂單不存在: %v", err)
+	// 從數據庫獲取訂單
+	var order struct {
+		ID          string  `db:"order_id"`
+		UserID      string  `db:"user_id"`
+		TotalAmount float64 `db:"total_price"`
+		Status      string  `db:"status"`
 	}
-	
+
+	err := s.db.Get(&order, "SELECT order_id, user_id, total_price, status FROM orders WHERE order_id = $1", req.OrderId)
+	if err != nil {
+		return nil, fmt.Errorf("獲取訂單失敗: %w", err)
+	}
+
 	// 獲取訂單項目
-	var items []models.OrderItem
-	err = s.db.SelectContext(ctx, &items,
-		`SELECT product_id, quantity, price 
-		 FROM order_items WHERE order_id = $1`, req.OrderId)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "無法獲取訂單項目: %v", err)
+	var items []struct {
+		ProductID   string  `db:"product_id"`
+		ProductName string  `db:"product_name"`
+		Quantity    int32   `db:"quantity"`
+		UnitPrice   float64 `db:"unit_price"`
 	}
-	
-	// 轉換為gRPC響應
-	var pbItems []*pb.OrderItem
+
+	err = s.db.Select(&items, "SELECT product_id, product_name, quantity, unit_price FROM order_items WHERE order_id = $1", req.OrderId)
+	if err != nil {
+		return nil, fmt.Errorf("獲取訂單項目失敗: %w", err)
+	}
+
+	// 轉換為gRPC響應格式
+	pbItems := make([]*pb.OrderItem, 0, len(items))
 	for _, item := range items {
 		pbItems = append(pbItems, &pb.OrderItem{
 			ProductId: item.ProductID,
-			Quantity:  int32(item.Quantity),
-			Price:     float32(item.Price),
+			Quantity:  item.Quantity,
+			Price:     float32(item.UnitPrice),
 		})
 	}
 	
@@ -171,22 +176,12 @@ func (s *orderServer) GetOrder(ctx context.Context, req *pb.GetOrderRequest) (*p
 
 // UpdateOrderStatus 實現更新訂單狀態的gRPC方法
 func (s *orderServer) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrderStatusRequest) (*pb.OrderResponse, error) {
-	result, err := s.db.ExecContext(ctx,
-		`UPDATE orders SET status = $1 WHERE id = $2`,
-		req.Status, req.OrderId)
+	// 更新訂單狀態
+	_, err := s.db.Exec("UPDATE orders SET status = $1 WHERE order_id = $2", req.Status, req.OrderId)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "無法更新訂單狀態: %v", err)
+		return nil, fmt.Errorf("更新訂單狀態失敗: %w", err)
 	}
-	
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "無法獲取影響的行數: %v", err)
-	}
-	
-	if rowsAffected == 0 {
-		return nil, status.Errorf(codes.NotFound, "訂單不存在")
-	}
-	
+
 	return &pb.OrderResponse{
 		OrderId: req.OrderId,
 		Status:  req.Status,
@@ -194,56 +189,39 @@ func (s *orderServer) UpdateOrderStatus(ctx context.Context, req *pb.UpdateOrder
 }
 
 // subscribeToCartEvents 訂閱購物車事件
-func subscribeToCartEvents(consumer messaging.KafkaConsumer, server *orderServer) {
+func subscribeToCartEvents(consumer *messaging.KafkaClient, server *orderServer) {
 	// 處理消息的回調函數
-	handler := func(msg *sarama.ConsumerMessage) error {
+	handler := func(msg []byte) error {
 		var event struct {
 			EventType string          `json:"event_type"`
 			UserID    string          `json:"user_id"`
-			CartID    string          `json:"cart_id"`
-			Items     []models.CartItem `json:"items"`
+			Items     []model.OrderItem `json:"items"`
 		}
-		
-		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Printf("無法解析事件: %v", err)
-			return err
-		}
-		
-		// 只處理結帳事件
-		if event.EventType != "CHECKOUT" {
-			return nil
-		}
-		
-		// 將購物車項目轉換為訂單項目
-		var orderItems []*pb.OrderItem
-		for _, item := range event.Items {
-			// 這裡應該從產品服務獲取價格，但為了簡化，我們假設價格為10.0
-			orderItems = append(orderItems, &pb.OrderItem{
-				ProductId: item.ProductID,
-				Quantity:  int32(item.Quantity),
-				Price:     10.0, // 假設價格
-			})
-		}
-		
-		// 創建訂單
-		_, err := server.CreateOrder(context.Background(), &pb.CreateOrderRequest{
-			UserId: event.UserID,
-			Items:  orderItems,
-		})
-		
+
+		err := json.Unmarshal(msg, &event)
 		if err != nil {
-			log.Printf("無法創建訂單: %v", err)
+			log.Printf("解析消息失敗: %v", err)
 			return err
 		}
-		
-		log.Printf("已為用戶 %s 創建訂單", event.UserID)
+
+		// 根據事件類型處理不同的邏輯
+		if event.EventType == "CHECKOUT" {
+			// 創建訂單
+			err := repository.NewOrderRepo(server.db).CreateOrder(event.UserID, event.Items)
+			if err != nil {
+				log.Printf("創建訂單失敗: %v", err)
+				return err
+			}
+			log.Printf("已為用戶 %s 創建訂單", event.UserID)
+		}
+
 		return nil
 	}
-	
-	// 開始消費消息
-	err := consumer.Consume("cart-events", handler)
+
+	// 啟動消費
+	ctx := context.Background()
+	err := consumer.ConsumeMessages(ctx, "cart_events", "order-service", handler)
 	if err != nil {
 		log.Fatalf("無法消費消息: %v", err)
 	}
 }
-
