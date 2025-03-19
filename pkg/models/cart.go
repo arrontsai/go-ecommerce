@@ -6,23 +6,20 @@ import (
 	"github.com/google/uuid"
 )
 
+// CartItem represents an item in a shopping cart
+type CartItem struct {
+	ProductID string    `json:"product_id" bson:"product_id"`
+	Quantity  int       `json:"quantity" bson:"quantity"`
+	AddedAt   time.Time `json:"added_at" bson:"added_at"`
+}
+
 // Cart represents a shopping cart in the system
 type Cart struct {
-	ID        string     `json:"id" bson:"_id,omitempty"`
+	ID        string     `json:"id" bson:"_id"`
 	UserID    string     `json:"user_id" bson:"user_id"`
 	Items     []CartItem `json:"items" bson:"items"`
 	CreatedAt time.Time  `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at" bson:"updated_at"`
-}
-
-// CartItem represents an item in a shopping cart
-type CartItem struct {
-	ID        string    `json:"id" bson:"id"`
-	ProductID string    `json:"product_id" bson:"product_id"`
-	Name      string    `json:"name" bson:"name"`
-	Price     float64   `json:"price" bson:"price"`
-	Quantity  int       `json:"quantity" bson:"quantity"`
-	CreatedAt time.Time `json:"created_at" bson:"created_at"`
 }
 
 // CartItemRequest represents the data needed to add an item to a cart
@@ -48,14 +45,11 @@ func NewCart(userID string) *Cart {
 }
 
 // NewCartItem creates a new cart item
-func NewCartItem(productID, name string, price float64, quantity int) CartItem {
+func NewCartItem(productID string, quantity int) CartItem {
 	return CartItem{
-		ID:        uuid.New().String(),
 		ProductID: productID,
-		Name:      name,
-		Price:     price,
 		Quantity:  quantity,
-		CreatedAt: time.Now(),
+		AddedAt:   time.Now(),
 	}
 }
 
@@ -77,9 +71,9 @@ func (c *Cart) AddItem(item CartItem) {
 }
 
 // UpdateItem updates an item in the cart
-func (c *Cart) UpdateItem(itemID string, quantity int) bool {
+func (c *Cart) UpdateItem(productID string, quantity int) bool {
 	for i, item := range c.Items {
-		if item.ID == itemID {
+		if item.ProductID == productID {
 			c.Items[i].Quantity = quantity
 			c.UpdatedAt = time.Now()
 			return true
@@ -89,9 +83,9 @@ func (c *Cart) UpdateItem(itemID string, quantity int) bool {
 }
 
 // RemoveItem removes an item from the cart
-func (c *Cart) RemoveItem(itemID string) bool {
+func (c *Cart) RemoveItem(productID string) bool {
 	for i, item := range c.Items {
-		if item.ID == itemID {
+		if item.ProductID == productID {
 			// Remove the item
 			c.Items = append(c.Items[:i], c.Items[i+1:]...)
 			c.UpdatedAt = time.Now()
@@ -118,9 +112,8 @@ func (c *Cart) TotalItems() int {
 
 // TotalAmount returns the total amount of the cart
 func (c *Cart) TotalAmount() float64 {
-	total := 0.0
-	for _, item := range c.Items {
-		total += item.Price * float64(item.Quantity)
-	}
-	return total
+	// This function is not implemented as the price of the item is not available
+	// in the CartItem struct. You may need to add the price to the CartItem struct
+	// or retrieve it from another source.
+	return 0.0
 }

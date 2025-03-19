@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "github.com/arrontsai/ecommerce/services/order/proto;pb";
+
+// OrderService 定義訂單服務的gRPC接口
+service OrderService {
+  // CreateOrder 創建一個新訂單
+  rpc CreateOrder(CreateOrderRequest) returns (OrderResponse) {}
+  
+  // GetOrder 獲取訂單詳情
+  rpc GetOrder(GetOrderRequest) returns (OrderDetailResponse) {}
+  
+  // UpdateOrderStatus 更新訂單狀態
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (OrderResponse) {}
+}
+
+// CreateOrderRequest 創建訂單的請求
+message CreateOrderRequest {
+  string user_id = 1;
+  repeated OrderItem items = 2;
+}
+
+// OrderItem 訂單項目
+message OrderItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  float price = 3;
+}
+
+// OrderResponse 訂單操作的基本響應
+message OrderResponse {
+  string order_id = 1;
+  string status = 2;
+}
+
+// GetOrderRequest 獲取訂單的請求
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+// OrderDetailResponse 訂單詳情響應
+message OrderDetailResponse {
+  string order_id = 1;
+  string user_id = 2;
+  float total_amount = 3;
+  string status = 4;
+  repeated OrderItem items = 5;
+}
+
+// UpdateOrderStatusRequest 更新訂單狀態的請求
+message UpdateOrderStatusRequest {
+  string order_id = 1;
+  string status = 2;
+}

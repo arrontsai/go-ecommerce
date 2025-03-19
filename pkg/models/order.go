@@ -11,15 +11,15 @@ type OrderStatus string
 
 const (
 	// OrderStatusPending represents a pending order
-	OrderStatusPending OrderStatus = "pending"
+	OrderStatusPending OrderStatus = "PENDING"
 	// OrderStatusPaid represents a paid order
-	OrderStatusPaid OrderStatus = "paid"
+	OrderStatusPaid OrderStatus = "PAID"
 	// OrderStatusShipped represents a shipped order
-	OrderStatusShipped OrderStatus = "shipped"
+	OrderStatusShipped OrderStatus = "SHIPPED"
 	// OrderStatusDelivered represents a delivered order
-	OrderStatusDelivered OrderStatus = "delivered"
+	OrderStatusDelivered OrderStatus = "DELIVERED"
 	// OrderStatusCancelled represents a cancelled order
-	OrderStatusCancelled OrderStatus = "cancelled"
+	OrderStatusCancelled OrderStatus = "CANCELLED"
 )
 
 // PaymentStatus represents the status of a payment
@@ -40,8 +40,8 @@ const (
 type Order struct {
 	ID            string       `json:"id" gorm:"primaryKey"`
 	UserID        string       `json:"user_id" gorm:"index"`
-	Status        OrderStatus  `json:"status"`
 	TotalAmount   float64      `json:"total_amount"`
+	Status        OrderStatus  `json:"status"`
 	Items         []OrderItem  `json:"items" gorm:"foreignKey:OrderID"`
 	ShippingInfo  ShippingInfo `json:"shipping_info" gorm:"embedded"`
 	PaymentInfo   PaymentInfo  `json:"payment_info" gorm:"embedded"`
